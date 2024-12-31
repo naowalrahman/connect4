@@ -1,35 +1,34 @@
-#include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 
-#define LED_PIN 6
+#define LED_PIN 2
 #define NUM_LEDS 42  // 7 columns x 6 rows
 #define COLUMNS 7
 #define ROWS 6
 
-CRGB leds[NUM_LEDS];
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // Button pins
-const int buttonPins[COLUMNS] = {2, 3, 4, 5, 6, 7, 8};
-const int resetButtonPin = 9;
+const int buttonPins[COLUMNS] = {3, 4, 5, 6, 7, 8, 9};
+const int resetButtonPin = 10;
 
 // Board state
 int board[COLUMNS][ROWS];
 bool playerTurn = true;  // true = player 1 (red), false = player 2 (yellow)
 
 // Colors
-CRGB red = CRGB::Red;
-CRGB yellow = CRGB::Yellow;
-CRGB empty = CRGB::Black;
+uint32_t red = strip.Color(255, 0, 0);
+uint32_t yellow = strip.Color(0, 0, 255);
+uint32_t empty = strip.Color(0, 0, 0);
 
 void setup() {
-  FastLED.addLeds<NEOPIXEL, LED_PIN>(leds, NUM_LEDS);
-  FastLED.clear();
-  FastLED.show();
+  strip.begin();
+  strip.show();  // Initialize all pixels to 'off'
 
   // Initialize buttons
   for (int i = 0; i < COLUMNS; i++) {
-    pinMode(buttonPins[i], INPUT_PULLUP);
+    pinMode(buttonPins[i], INPUT);
   }
-  pinMode(resetButtonPin, INPUT_PULLUP);
+  pinMode(resetButtonPin, INPUT);
 
   resetBoard();
 }
@@ -37,14 +36,14 @@ void setup() {
 void loop() {
   // Check if any column button is pressed
   for (int i = 0; i < COLUMNS; i++) {
-    if (digitalRead(buttonPins[i]) == LOW) {
+    if (digitalRead(buttonPins[i]) == HIGH) {
       dropBall(i);
       delay(200);  // Debounce delay
     }
   }
 
   // Check if reset button is pressed
-  if (digitalRead(resetButtonPin) == LOW) {
+  if (digitalRead(resetButtonPin) == HIGH) {
     resetBoard();
     delay(200);  // Debounce delay
   }
@@ -69,25 +68,26 @@ void dropBall(int column) {
 
 void animateDrop(int column, int row) {
   for (int r = 0; r <= row; r++) {
-    leds[getPixelIndex(column, r)] = playerTurn ? red : yellow;
-    FastLED.show();
+    strip.setPixelColor(getPixelIndex(column, r), playerTurn ? red : yellow);
+    strip.show();
     delay(100);  // Adjust for desired drop speed
     if (r < row) {
-      leds[getPixelIndex(column, r)] = empty;
-      FastLED.show();
+      strip.setPixelColor(getPixelIndex(column, r), empty);
+      strip.show();
     }
   }
 }
 
+// Update this function to calculate pixel index based on column-by-column arrangement
 int getPixelIndex(int column, int row) {
-  return column + (row * COLUMNS);
+  return row + (column * ROWS);
 }
 
 void resetBoard() {
   for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = empty;
+    strip.setPixelColor(i, empty);
   }
-  FastLED.show();
+  strip.show();
 
   for (int c = 0; c < COLUMNS; c++) {
     for (int r = 0; r < ROWS; r++) {
@@ -121,13 +121,17 @@ int checkDirection(int column, int row, int dColumn, int dRow, int color) {
 }
 
 void winAnimation() {
-  CRGB color = playerTurn ? red : yellow;
+  uint32_t color = playerTurn ? red : yellow;
   for (int i = 0; i < 5; i++) {
-    fill_solid(leds, NUM_LEDS, color);
-    FastLED.show();
+    for (int j = 0; j < NUM_LEDS; j++) {
+      strip.setPixelColor(j, color);
+    }
+    strip.show();
     delay(200);
-    fill_solid(leds, NUM_LEDS, empty);
-    FastLED.show();
+    for (int j = 0; j < NUM_LEDS; j++) {
+      strip.setPixelColor(j, empty);
+    }
+    strip.show();
     delay(200);
   }
 }
